@@ -325,14 +325,19 @@ function pQueen(c,t){
   c.fillStyle='#e23b3b';ell(c,0,31,3.4,3.4);
 }
 const BOSS={
-  beetle:{name:'Escarabajo Rinoceronte',img:'arte/escarabajo.webp',size:6.8,hw:1.45,adv:.3,sway:.55,cd:3.2,tele:1,cf:.2,sk:2,sum:6,sumType:0,shot:'#9be36b',atk:['charge','summon','charge'],paint:pBeetle},
-  spider:{name:'Araña Tejedora',img:'arte/arana.webp',size:7.8,hw:1.35,adv:.3,sway:.9,cd:2.9,tele:.95,cf:.2,sk:2,sum:8,sumType:1,shot:'#f4f4f4',atk:['spit3','summon','spit3','charge'],paint:pSpider},
-  wasp:{name:'Avispa Furiosa',img:'arte/avispa.webp',size:7.4,hw:1.2,adv:.34,sway:1.5,cd:2.5,tele:.72,cf:.22,sk:3,sum:8,sumType:1,shot:'#ffd23f',atk:['charge','charge','spit1','summon'],paint:pWasp},
-  scorpion:{name:'Escorpión Dorado',img:'arte/escorpion.webp',size:7.2,hw:1.5,adv:.32,sway:.8,cd:2.5,tele:.85,cf:.24,sk:3,sum:6,sumType:2,shot:'#b46bff',atk:['spit5','charge','summon','spit3'],paint:pScorpion},
-  queen:{name:'Hormiga Reina',img:'arte/reina.webp',size:8.2,hw:1.6,adv:.28,sway:.6,cd:2.3,tele:.85,cf:.25,sk:3,sum:10,sumType:0,shot:'#ffb347',atk:['summonBig','spit5','charge','summon','spit3','charge'],paint:pQueen}
+  beetle:{name:'Escarabajo Rinoceronte',img:'arte/escarabajo.webp',anim:{src:'arte/escarabajo-anim.webp',n:12,cols:4,w:448,h:376,fps:14.4},size:6.8,hw:1.45,adv:.3,sway:.55,cd:3.2,tele:1,cf:.2,sk:2,sum:6,sumType:0,shot:'#9be36b',atk:['charge','summon','charge'],paint:pBeetle},
+  spider:{name:'Araña Tejedora',img:'arte/arana.webp',anim:{src:'arte/arana-anim.webp',n:12,cols:4,w:487,h:400,fps:12},size:7.8,hw:1.35,adv:.3,sway:.9,cd:2.9,tele:.95,cf:.2,sk:2,sum:8,sumType:1,shot:'#f4f4f4',atk:['spit3','summon','spit3','charge'],paint:pSpider},
+  wasp:{name:'Avispa Furiosa',img:'arte/avispa.webp',anim:{src:'arte/avispa-anim.webp',n:12,cols:4,w:436,h:400,fps:9.93},size:7.4,hw:1.2,adv:.34,sway:1.5,cd:2.5,tele:.72,cf:.22,sk:3,sum:8,sumType:1,shot:'#ffd23f',atk:['charge','charge','spit1','summon'],paint:pWasp},
+  scorpion:{name:'Escorpión Dorado',img:'arte/escorpion.webp',anim:{src:'arte/escorpion-anim.webp',n:12,cols:4,w:378,h:400,fps:10.67},size:7.2,hw:1.5,adv:.32,sway:.8,cd:2.5,tele:.85,cf:.24,sk:3,sum:6,sumType:2,shot:'#b46bff',atk:['spit5','charge','summon','spit3'],paint:pScorpion},
+  queen:{name:'Hormiga Reina',img:'arte/reina.webp',anim:{src:'arte/reina-anim.webp',n:12,cols:4,w:450,h:400,fps:12.52},size:8.2,hw:1.6,adv:.28,sway:.6,cd:2.3,tele:.85,cf:.25,sk:3,sum:10,sumType:0,shot:'#ffb347',atk:['summonBig','spit5','charge','summon','spit3','charge'],paint:pQueen}
 };
 /* Si un jefe tiene imagen (img) se usa esa; si falta o no carga, se dibuja con su función paint. */
-for(const k in BOSS){const B=BOSS[k];if(B.img){B.im=new Image();B.im.src=B.img;}}
+function loadBoss(k){
+  // se pide recién cuando hace falta (el nivel actual y el siguiente): hoja animada si tiene, y la imagen fija solo si esa hoja falla
+  const B=BOSS[k];if(!B||B.pedido)return;B.pedido=true;
+  const fija=()=>{if(B.img){B.im=new Image();B.im.src=B.img;}};
+  if(B.anim){B.sheet=new Image();B.sheet.onerror=fija;B.sheet.src=B.anim.src;}else fija();
+}
 const BS=600,BC=document.createElement('canvas');BC.width=BC.height=BS;const BCX=BC.getContext('2d');
 
 /* ---------- niveles ---------- */
@@ -417,7 +422,7 @@ function setupLevel(L,auto,opt){
   ants.length=0;bullets.length=0;parts.length=0;floats.length=0;soldiers.length=0;
   buildLevel(L,opt.skill==null?1:opt.skill);
   syncSoldiers();
-  if(!SIM){buildDecor();buildBackdrop();}
+  if(!SIM){buildDecor();buildBackdrop();loadBoss(LV[L].boss);if(LV[L+1])loadBoss(LV[L+1].boss);}
 }
 
 /* ---------- efectos ---------- */
@@ -472,6 +477,7 @@ function doAttack(b,a){
 }
 function updBoss(dt){
   const b=G.boss,B=b.def;b.t+=dt;if(b.hit>0)b.hit-=dt*5;
+  b.at=(b.at||0)+dt*(b.state==='dash'?2.4:b.state==='tele'?.3:1); // reloj de la animación: casi quieto al avisar, rápido al embestir
   if(b.state==='dead'){b.st+=dt;return;}
   if(!live())return;
   if(b.state==='enter'){b.z-=9*dt;if(b.z<=b.home){b.z=b.home;b.state='idle';b.cd=1.6;}return;}
@@ -723,10 +729,14 @@ function drawCrate(c,k){
 }
 function drawBoss(c,b){
   if(b.state==='dead'&&b.st>1.1)return;
-  const B=b.def,k=BCX,spr=!!(B.im&&B.im.complete&&B.im.naturalWidth>0);
+  const B=b.def,k=BCX,A=B.anim,hoja=!!(A&&B.sheet&&B.sheet.complete&&B.sheet.naturalWidth>0),spr=hoja||!!(B.im&&B.im.complete&&B.im.naturalWidth>0);
   k.setTransform(1,0,0,1,0,0);k.globalCompositeOperation='source-over';k.globalAlpha=1;k.clearRect(0,0,BS,BS);
   k.translate(BS/2,BS/2);
-  if(spr){
+  if(hoja){
+    // animación sacada de un video: hoja de cuadros que se recorre con el reloj del jefe (b.at)
+    const fr=Math.floor((b.at||0)*A.fps)%A.n,f=BS*.94/Math.max(A.w,A.h);
+    k.drawImage(B.sheet,(fr%A.cols)*A.w,Math.floor(fr/A.cols)*A.h,A.w,A.h,-A.w*f/2,-A.h*f/2,A.w*f,A.h*f);
+  }else if(spr){
     // imagen fija: el movimiento (balanceo al caminar y un leve aplastado) se hace por código
     const w=B.im.naturalWidth,h=B.im.naturalHeight,f=BS*.94/Math.max(w,h),q=Math.sin(b.t*13)*.014;
     if(b.state!=='tele')k.rotate(Math.sin(b.t*6.5)*.04);
