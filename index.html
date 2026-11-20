@@ -182,9 +182,9 @@ function poly(c,p){c.beginPath();c.moveTo(p[0],p[1]);for(let i=2;i<p.length;i+=2
 
 /* ---------- sprites: hormigas ---------- */
 const ANT=[
-  {img:'arte/hormiga-obrera.webp',hp:1,w:.66,walk:2.2,bite:1,body:'#4a2c1a',hi:'#9a6a40',leg:'#2b180d'},
-  {img:'arte/hormiga-roja.webp',hp:.8,w:.6,walk:4.3,bite:1,body:'#c2371d',hi:'#ff9a5a',leg:'#6e1a0c'},
-  {img:'arte/hormiga-soldado.webp',hp:9,w:1.12,walk:1.7,bite:3,body:'#1d1a1c',hi:'#6a6470',leg:'#0c0a0c'}
+  {img:'arte/hormiga-obrera.webp',anim:{src:'arte/hormiga-obrera-anim.webp',n:12,cols:4,w:224,h:200,fps:13.09},hp:1,w:.66,walk:2.2,bite:1,body:'#4a2c1a',hi:'#9a6a40',leg:'#2b180d'},
+  {img:'arte/hormiga-roja.webp',anim:{src:'arte/hormiga-roja-anim.webp',n:12,cols:4,w:178,h:200,fps:15.16},hp:.8,w:.6,walk:4.3,bite:1,body:'#c2371d',hi:'#ff9a5a',leg:'#6e1a0c'},
+  {img:'arte/hormiga-soldado.webp',anim:{src:'arte/hormiga-soldado-anim.webp',n:12,cols:4,w:211,h:200,fps:14.4},hp:9,w:1.12,walk:1.7,bite:3,body:'#1d1a1c',hi:'#6a6470',leg:'#0c0a0c'}
 ];
 function paintAnt(c,w,h,A,f){
   c.translate(w/2,h/2);c.scale(w/100,h/116);
@@ -215,7 +215,20 @@ function antFrames(A,im){
   }));
   A.fl=tint(A.fr[1],'#fff',.75);
 }
-for(const A of ANT)if(A.img){const im=new Image();im.onload=()=>antFrames(A,im);im.src=A.img;}
+/* Con animación (anim) se arma un cuadro por cada celda de la hoja; si la hoja falla queda la imagen fija con bamboleo. */
+function antSheet(A,im){
+  const S=168,an=A.anim,f=S*.9/Math.max(an.w,an.h),w=an.w*f,h=an.h*f;
+  A.fr=Array.from({length:an.n},(_,i)=>mk(S,S,c=>{
+    c.imageSmoothingQuality='high';c.translate(S/2,S/2);
+    c.fillStyle='rgba(0,0,0,.2)';ell(c,S*.02,S*.05,w*.36,h*.4);
+    c.drawImage(im,(i%an.cols)*an.w,Math.floor(i/an.cols)*an.h,an.w,an.h,-w/2,-h/2,w,h);
+  }));
+  A.fps=an.fps;A.fl=tint(A.fr[0],'#fff',.75);
+}
+for(const A of ANT){
+  const fija=()=>{if(A.img){const im=new Image();im.onload=()=>antFrames(A,im);im.src=A.img;}};
+  if(A.anim){const sh=new Image();sh.onload=()=>antSheet(A,sh);sh.onerror=fija;sh.src=A.anim.src;}else fija();
+}
 
 /* ---------- sprites: fumigadores (vistos de atrás) ---------- */
 function paintSoldier(c,w,h,f){
@@ -236,7 +249,10 @@ function paintSoldier(c,w,h,f){
   c.fillStyle='rgba(255,255,255,.5)';ell(c,25,15+b,3.5,2.5);
 }
 const SOL=[0,1].map(f=>mk(90,120,(c,w,h)=>paintSoldier(c,w,h,f)));
-{const im=new Image();im.onload=()=>{
+let SOLFPS=7;
+/* Animación del fumigador: poner acá la línea anim:{...} que imprime herramientas/hoja-animacion.mjs. Sin ella queda la imagen fija. */
+const FUM_ANIM={src:'arte/fumigador-anim.webp',n:12,cols:4,w:148,h:240,fps:12};
+function fumFija(){const im=new Image();im.onload=()=>{
   for(let f=0;f<2;f++)SOL[f]=mk(150,200,c=>{
     c.imageSmoothingQuality='high';
     const h=186-f*5,w=h*im.naturalWidth/im.naturalHeight;
@@ -244,6 +260,16 @@ const SOL=[0,1].map(f=>mk(90,120,(c,w,h)=>paintSoldier(c,w,h,f)));
     c.drawImage(im,75-w/2,192-h-f*3,w,h);
   });
 };im.src='arte/fumigador.webp';}
+if(FUM_ANIM){const sh=new Image(),an=FUM_ANIM;sh.onerror=fumFija;sh.onload=()=>{
+  SOL.length=0;
+  for(let i=0;i<an.n;i++)SOL.push(mk(150,200,c=>{
+    c.imageSmoothingQuality='high';
+    const h=186,w=h*an.w/an.h;
+    c.fillStyle='rgba(0,0,0,.25)';ell(c,75,186,40,11);
+    c.drawImage(sh,(i%an.cols)*an.w,Math.floor(i/an.cols)*an.h,an.w,an.h,75-w/2,192-h,w,h);
+  }));
+  SOLFPS=an.fps;
+};sh.src=an.src;}else fumFija();
 
 /* ---------- sprites: jardín ---------- */
 function paintGrass(c,w,h){const R=rng(5);for(let i=0;i<9;i++){const bx=w*(.22+.56*R()),tip=w*(.04+.92*R()),th=h*(.35+.62*R()),bw=6+R()*7;const g=c.createLinearGradient(0,h,0,h-th);g.addColorStop(0,'#2a7422');g.addColorStop(1,i%2?'#9ade58':'#6cc13c');c.fillStyle=g;c.beginPath();c.moveTo(bx-bw,h);c.quadraticCurveTo(bx-bw*.5+(tip-bx)*.3,h-th*.6,tip,h-th);c.quadraticCurveTo(bx+bw*.5+(tip-bx)*.5,h-th*.5,bx+bw,h);c.closePath();c.fill();}}
@@ -685,7 +711,7 @@ function fadeFar(c,z){if(z>FAR-12)c.globalAlpha=clamp((FAR-z)/12,0,1);}
 function drawAnt(c,a){
   const s=sc(a.z),A=ANT[a.type],w=A.w*unit*s*1.5*a.sz,x=cx+a.x*unit*s,y=horY+gH*s;
   fadeFar(c,a.z);
-  c.drawImage(a.hit>0?A.fl:A.fr[((G.t*10+a.ph)|0)&3],x-w/2,y-w*.62,w,w);
+  c.drawImage(a.hit>0?A.fl:A.fr[((G.t*(A.fps||10)+a.ph)|0)%A.fr.length],x-w/2,y-w*.62,w,w);
   c.globalAlpha=1;
 }
 function label(c,txt,x,y,size,fill,stroke){c.font=Math.max(8,size|0)+'px '+DISPLAY;c.textAlign='center';c.textBaseline='middle';c.lineJoin='round';c.lineWidth=Math.max(2,size*.2);c.strokeStyle=stroke;c.strokeText(txt,x,y);c.fillStyle=fill;c.fillText(txt,x,y);}
@@ -776,7 +802,7 @@ function drawSquad(c){
     const i=ORDER[j];if(i>=n)continue;
     const p=soldiers[i],s=sc(p.z),u=unit*s,k=.3+.7*p.sp,w=.74*u*k,h=w*1.333;
     const hop=won?Math.abs(Math.sin(G.t*9+i))*.3*u:0;
-    c.drawImage(SOL[((G.t*7+i*.37)|0)&1],cx+p.x*u-w/2,horY+gH*s-h*.92-hop,w,h);
+    c.drawImage(SOL[((G.t*SOLFPS+i*.37)|0)%SOL.length],cx+p.x*u-w/2,horY+gH*s-h*.92-hop,w,h);
   }
   const R=sqR(),s=sc(.35+R*.85),u=unit*s,x=cx+G.x*u,y=horY+gH*s-1.5*u;
   const txt=String(G.N),fs=.62*unit;c.font=(fs|0)+'px '+DISPLAY;
