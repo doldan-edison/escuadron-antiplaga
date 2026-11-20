@@ -16,7 +16,9 @@ Son 5 niveles, unos 10 minutos.
 
 ## Cómo está hecho
 
-Todo el juego está en `index.html`: canvas 2D, sin dependencias. El escenario, las puertas, las cajas y el sonido se generan por código.
+Todo el juego está en `index.html`: canvas 2D, sin dependencias. Las puertas, los disparos, los efectos y el sonido se generan por código.
+
+El suelo usa texturas en perspectiva: el césped se genera por código y el camino sale de `arte/tierra.webp`; las dos se tiñen según el nivel. Las plantas, las piedras y la caja son imágenes de `arte/` hechas con IA, igual que los personajes.
 
 Los personajes (los cinco jefes, las tres hormigas y el fumigador) son imágenes de `arte/`, generadas con IA en Google Flow sobre fondo magenta y recortadas con `herramientas/recortar.mjs` (necesita Node y ffmpeg). Si una imagen no carga, el juego dibuja ese personaje por código.
 
